@@ -26,7 +26,7 @@ jobs:
     - name: Run tests
       run: |
         cd backend
-        pytest -v
+        PYTHONPATH=. pytest -v
 
     - name: Build Docker image
       run: |
