@@ -1,6 +1,8 @@
  # 🧠 Smart Sentiment Analyzer
 
 > A **production-grade learning project** covering: REST API, ML/NLP, Data Structures, Docker, CI/CD, GitHub, and Cloud Deployment.
+>
+> API Deployment - https://smart-sentiment-1.onrender.com
 
 ---
 
