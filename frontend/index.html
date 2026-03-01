@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Sentiment Analyzer</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3e;
+      --accent: #6366f1;
+      --accent2: #8b5cf6;
+      --positive: #22c55e;
+      --negative: #ef4444;
+      --neutral: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    header p { color: var(--muted); font-size: 0.95rem; }
+
+    /* API URL bar */
+    .api-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    .api-bar label { color: var(--muted); white-space: nowrap; }
+    .api-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .status-dot.healthy { background: var(--positive); }
+    .status-dot.unhealthy { background: var(--negative); }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Analyze card */
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 0.875rem;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 100px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+    .char-count { font-size: 0.75rem; color: var(--muted); text-align: right; margin-top: 0.25rem; }
+
+    .btn {
+      padding: 0.65rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+
+    /* Result display */
+    #result-box {
+      margin-top: 1.25rem;
+      padding: 1.25rem;
+      background: var(--bg);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      display: none;
+    }
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .label-badge {
+      font-size: 1.1rem;
+      font-weight: 700;
+      padding: 0.3rem 1rem;
+      border-radius: 20px;
+    }
+    .POSITIVE { background: rgba(34,197,94,0.15); color: var(--positive); }
+    .NEGATIVE { background: rgba(239,68,68,0.15); color: var(--negative); }
+    .NEUTRAL { background: rgba(245,158,11,0.15); color: var(--neutral); }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .meta-item { text-align: center; }
+    .meta-value { font-size: 1.2rem; font-weight: 700; color: var(--accent); }
+    .meta-label { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+
+    .confidence-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .confidence-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+    .POSITIVE .fill { background: var(--positive); }
+    .NEGATIVE .fill { background: var(--negative); }
+    .NEUTRAL .fill { background: var(--neutral); }
+
+    /* API explorer */
+    .endpoint-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.875rem;
+      background: var(--bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .endpoint:hover { border-color: var(--accent); }
+    .method {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      min-width: 44px;
+      text-align: center;
+    }
+    .GET { background: rgba(34,197,94,0.15); color: var(--positive); }
+    .POST { background: rgba(99,102,241,0.2); color: var(--accent); }
+    .DELETE { background: rgba(239,68,68,0.15); color: var(--negative); }
+    .path { font-family: monospace; font-size: 0.875rem; flex: 1; }
+    .desc { font-size: 0.78rem; color: var(--muted); }
+
+    /* JSON output */
+    pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #a5b4fc;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Analytics */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+    .stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* Pipeline diagram */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .step {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.875rem;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+    .step .icon { font-size: 1.1rem; display: block; }
+    .arrow { color: var(--muted); font-size: 1.2rem; }
+
+    /* Error */
+    .error { color: var(--negative); font-size: 0.85rem; margin-top: 0.5rem; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 2rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🧠 Smart Sentiment Analyzer</h1>
+    <p>Learn APIs, ML, Docker, CI/CD — one project at a time</p>
+  </header>
+
+  <!-- API URL Bar -->
+  <div class="api-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <label>API:</label>
+    <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000" />
+    <button class="btn btn-ghost" onclick="checkHealth()" style="padding:0.4rem 0.75rem;font-size:0.78rem">Ping</button>
+  </div>
+
+  <!-- Main Analyze -->
+  <div class="card">
+    <h2>✍️ Analyze Text</h2>
+    <textarea id="text-input" placeholder="Enter text to analyze... e.g. 'This product is absolutely amazing!'" maxlength="1000" oninput="updateCharCount()"></textarea>
+    <div class="char-count"><span id="char-count">0</span>/1000</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="analyze()">Analyze Sentiment →</button>
+      <button class="btn btn-ghost" onclick="loadExample()">Load Example</button>
+      <button class="btn btn-ghost" onclick="analyzeBatch()">Batch Test</button>
+    </div>
+    <div id="error-msg" class="error"></div>
+
+    <div id="result-box">
+      <div class="result-header">
+        <div>
+          <div class="label-badge" id="result-label">—</div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:0.3rem" id="result-cached"></div>
+        </div>
+        <div style="text-align:right;font-size:0.78rem;color:var(--muted)" id="result-time"></div>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item"><div class="meta-value" id="r-confidence">—</div><div class="meta-label">Confidence</div></div>
+        <div class="meta-item"><div class="meta-value" id="r-score">—</div><div class="meta-label">Raw Score</div></div>
+        <div class="meta-item"><div class="meta-value" id="r-tokens">—</div><div class="meta-label">Tokens</div></div>
+        <div class="meta-item"><div class="meta-value" id="r-ms">—</div><div class="meta-label">Latency (ms)</div></div>
+      </div>
+      <div class="confidence-bar" style="margin-top:1rem">
+        <div class="confidence-fill" id="conf-bar" style="width:0%;background:var(--accent)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CI/CD Pipeline Diagram -->
+  <div class="card">
+    <h2>🔄 CI/CD Pipeline (How Your Code Deploys)</h2>
+    <div class="pipeline">
+      <div class="step"><span class="icon">📝</span>Git Push</div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="icon">✅</span>GitHub Actions<br><small>Run Tests</small></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="icon">🐳</span>Build Docker<br><small>Image</small></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="icon">📦</span>Push to<br><small>Registry</small></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="icon">🚀</span>Deploy to<br><small>Render/Railway</small></div>
+      <div class="arrow">→</div>
+      <div class="step"><span class="icon">🌐</span>Live!</div>
+    </div>
+  </div>
+
+  <!-- API Explorer -->
+  <div class="card">
+    <h2>🔌 API Explorer — Click to Call</h2>
+    <div class="endpoint-list">
+      <div class="endpoint" onclick="callEndpoint('GET','/health')">
+        <span class="method GET">GET</span>
+        <span class="path">/health</span>
+        <span class="desc">Server health check</span>
+      </div>
+      <div class="endpoint" onclick="callEndpoint('GET','/analytics')">
+        <span class="method GET">GET</span>
+        <span class="path">/analytics</span>
+        <span class="desc">Usage statistics & cache info</span>
+      </div>
+      <div class="endpoint" onclick="callEndpoint('GET','/history')">
+        <span class="method GET">GET</span>
+        <span class="path">/history</span>
+        <span class="desc">Last 50 analyses (ring buffer)</span>
+      </div>
+      <div class="endpoint" onclick="callEndpoint('DELETE','/cache')">
+        <span class="method DELETE">DELETE</span>
+        <span class="path">/cache</span>
+        <span class="desc">Clear LRU cache</span>
+      </div>
+      <div class="endpoint" onclick="openSwagger()">
+        <span class="method GET">GET</span>
+        <span class="path">/docs</span>
+        <span class="desc">Interactive Swagger UI (open in new tab)</span>
+      </div>
+    </div>
+    <pre id="api-response" style="margin-top:1rem;display:none"></pre>
+  </div>
+
+  <!-- Analytics -->
+  <div class="card">
+    <h2>📊 Live Analytics</h2>
+    <div class="stats-grid" id="analytics-grid">
+      <div class="stat-card"><div class="stat-value" id="s-total">—</div><div class="stat-label">Total Analyzed</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-pos">—</div><div class="stat-label">Positive</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-neg">—</div><div class="stat-label">Negative</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-neu">—</div><div class="stat-label">Neutral</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-cache">—</div><div class="stat-label">Cache Size</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-conf">—</div><div class="stat-label">Avg Confidence</div></div>
+    </div>
+    <button class="btn btn-ghost" onclick="loadAnalytics()" style="margin-top:1rem;font-size:0.8rem">↻ Refresh</button>
+  </div>
+
+  <footer>
+    Built to learn · <a href="https://github.com/YOUR_USERNAME/smart-sentiment" target="_blank">GitHub</a> ·
+    <a href="#" onclick="openSwagger()">API Docs</a>
+  </footer>
+</div>
+
+<script>
+const BASE = () => document.getElementById('api-url').value.trim().replace(/\/$/, '');
+
+async function checkHealth() {
+  const dot = document.getElementById('status-dot');
+  try {
+    const r = await fetch(`${BASE()}/health`);
+    dot.className = r.ok ? 'status-dot healthy' : 'status-dot unhealthy';
+  } catch {
+    dot.className = 'status-dot unhealthy';
+  }
+}
+
+function updateCharCount() {
+  const n = document.getElementById('text-input').value.length;
+  document.getElementById('char-count').textContent = n;
+}
+
+function setError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+}
+
+const EXAMPLES = [
+  "I absolutely love this product! It's fantastic and works perfectly.",
+  "This is terrible. Worst experience ever, completely disappointing.",
+  "The package arrived on Tuesday. It was a standard delivery.",
+  "Not bad, but not great either. Could be better.",
+  "Amazing! Totally exceeded my expectations, very happy with it!"
+];
+let exIdx = 0;
+function loadExample() {
+  document.getElementById('text-input').value = EXAMPLES[exIdx++ % EXAMPLES.length];
+  updateCharCount();
+}
+
+async function analyze() {
+  const text = document.getElementById('text-input').value;
+  setError('');
+  if (!text.trim()) { setError('Please enter some text.'); return; }
+
+  try {
+    const r = await fetch(`${BASE()}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    if (!r.ok) {
+      const e = await r.json();
+      setError('Error: ' + (e.detail || 'Unknown error'));
+      return;
+    }
+    const data = await r.json();
+    showResult(data);
+    loadAnalytics();
+  } catch (e) {
+    setError('Could not reach API. Is it running? Check the URL above.');
+  }
+}
+
+function showResult(data) {
+  const box = document.getElementById('result-box');
+  box.style.display = 'block';
+
+  const lbl = document.getElementById('result-label');
+  lbl.textContent = data.label === 'POSITIVE' ? '😊 POSITIVE'
+    : data.label === 'NEGATIVE' ? '😔 NEGATIVE' : '😐 NEUTRAL';
+  lbl.className = 'label-badge ' + data.label;
+
+  document.getElementById('r-confidence').textContent = data.confidence + '%';
+  document.getElementById('r-score').textContent = data.score;
+  document.getElementById('r-tokens').textContent = data.token_count;
+  document.getElementById('r-ms').textContent = data.processing_ms;
+  document.getElementById('result-time').textContent = new Date(data.timestamp).toLocaleTimeString();
+  document.getElementById('result-cached').textContent = data.cached ? '⚡ Served from LRU cache' : '🔄 Freshly computed';
+
+  const bar = document.getElementById('conf-bar');
+  const colors = { POSITIVE: '#22c55e', NEGATIVE: '#ef4444', NEUTRAL: '#f59e0b' };
+  bar.style.width = data.confidence + '%';
+  bar.style.background = colors[data.label];
+}
+
+async function analyzeBatch() {
+  const texts = [
+    "I love this!",
+    "This is awful and bad.",
+    "The sky is blue."
+  ];
+  try {
+    const r = await fetch(`${BASE()}/analyze/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(texts)
+    });
+    const data = await r.json();
+    document.getElementById('api-response').style.display = 'block';
+    document.getElementById('api-response').textContent = '// Batch Result:\n' + JSON.stringify(data, null, 2);
+  } catch {
+    setError('API not reachable.');
+  }
+}
+
+async function callEndpoint(method, path) {
+  const pre = document.getElementById('api-response');
+  pre.style.display = 'block';
+  pre.textContent = '// Loading...';
+  try {
+    const r = await fetch(`${BASE()}${path}`, { method });
+    const data = await r.json();
+    pre.textContent = `// ${method} ${path}\n` + JSON.stringify(data, null, 2);
+  } catch {
+    pre.textContent = '// Error: Could not reach API. Make sure it\'s running.';
+  }
+}
+
+async function loadAnalytics() {
+  try {
+    const r = await fetch(`${BASE()}/analytics`);
+    const d = await r.json();
+    document.getElementById('s-total').textContent = d.total_analyzed || 0;
+    document.getElementById('s-pos').textContent = d.label_distribution?.POSITIVE || 0;
+    document.getElementById('s-neg').textContent = d.label_distribution?.NEGATIVE || 0;
+    document.getElementById('s-neu').textContent = d.label_distribution?.NEUTRAL || 0;
+    document.getElementById('s-cache').textContent = `${d.cache_size}/${d.cache_capacity}`;
+    document.getElementById('s-conf').textContent = (d.average_confidence || 0) + '%';
+  } catch {}
+}
+
+function openSwagger() {
+  window.open(`${BASE()}/docs`, '_blank');
+}
+
+// Init
+checkHealth();
+loadAnalytics();
+</script>
+</body>
+</html>
